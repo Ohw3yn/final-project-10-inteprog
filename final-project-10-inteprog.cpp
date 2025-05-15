@@ -31,6 +31,10 @@ class PatientNotFoundException : public HospitalException {
 public: PatientNotFoundException() : HospitalException("Patient not found") {}
 };
 
+class PermissionDeniedException : public HospitalException {
+public: PermissionDeniedException() : HospitalException("Permission denied: The administrator has restricted your access to this function") {}
+};
+
 class MenuStrategy {
 public:
     virtual void displayMenu() = 0;
@@ -324,217 +328,234 @@ public:
 
 class DoctorMenuStrategy : public MenuStrategy {
     void viewPatientRecords() {
-        FileHandler* fh = FileHandler::getInstance();
-        Patient* patients; int count;
-        fh->loadAllPatients(patients, count);
-        
-        if (!count) { cout << "No patients registered yet.\n"; return; }
-        
-        cout << "\nPatient List:\n";
-        for (int i = 0; i < count; i++) patients[i].displayShort();
-        
-        cout << "\nEnter patient ID to view details (0 to cancel): ";
-        int id; cin >> id; cin.ignore();
-        if (!id) { delete[] patients; return; }
-        
-        for (int i = 0; i < count; i++) {
-            if (patients[i].getId() == id) {
-                cout << "\nPatient Details:\n"; patients[i].display();
-                delete[] patients;
-                return;
+        try {
+            // Check permission
+            FileHandler* fh = FileHandler::getInstance();
+            int count; bool* rights = fh->getAccessRights("Doctor", count);
+            
+            if (!rights[0]) {
+                delete[] rights;
+                throw PermissionDeniedException();
             }
+            delete[] rights;
+            
+            Patient* patients; 
+            fh->loadAllPatients(patients, count);
+            
+            if (!count) { cout << "No patients registered yet.\n"; return; }
+            
+            cout << "\nPatient List:\n";
+            for (int i = 0; i < count; i++) patients[i].displayShort();
+            
+            cout << "\nEnter patient ID to view details (0 to cancel): ";
+            int id; cin >> id; cin.ignore();
+            if (!id) { delete[] patients; return; }
+            
+            for (int i = 0; i < count; i++) {
+                if (patients[i].getId() == id) {
+                    cout << "\nPatient Details:\n"; patients[i].display();
+                    delete[] patients;
+                    return;
+                }
+            }
+            
+            cout << "Patient not found.\n";
+            delete[] patients;
+        } catch (PermissionDeniedException& e) {
+            cout << e.what() << endl;
         }
-        
-        cout << "Patient not found.\n";
-        delete[] patients;
     }
     
     void updatePatientRecord() {
-        FileHandler* fh = FileHandler::getInstance();
-        Patient* patients; int count;
-        fh->loadAllPatients(patients, count);
-        
-        if (!count) { cout << "No patients registered yet.\n"; return; }
-        
-        cout << "\nPatient List:\n";
-        for (int i = 0; i < count; i++) patients[i].displayShort();
-        
-        cout << "\nEnter patient ID to update (0 to cancel): ";
-        int id; cin >> id; cin.ignore();
-        if (!id) { delete[] patients; return; }
-        
-        for (int i = 0; i < count; i++) {
-            if (patients[i].getId() == id) {
-                cout << "\nCurrent Diagnosis: " << patients[i].getDiagnosis() << "\nEnter new diagnosis: ";
-                string diag; getline(cin, diag);
-                patients[i].setDiagnosis(diag.c_str());
-                fh->updatePatient(patients[i]);
-                cout << "Diagnosis updated!\n";
-                delete[] patients;
-                return;
+        try {
+            // Check permission
+            FileHandler* fh = FileHandler::getInstance();
+            int count; bool* rights = fh->getAccessRights("Doctor", count);
+            
+            if (!rights[1]) {
+                delete[] rights;
+                throw PermissionDeniedException();
             }
+            delete[] rights;
+            
+            Patient* patients;
+            fh->loadAllPatients(patients, count);
+            
+            if (!count) { cout << "No patients registered yet.\n"; return; }
+            
+            cout << "\nPatient List:\n";
+            for (int i = 0; i < count; i++) patients[i].displayShort();
+            
+            cout << "\nEnter patient ID to update (0 to cancel): ";
+            int id; cin >> id; cin.ignore();
+            if (!id) { delete[] patients; return; }
+            
+            for (int i = 0; i < count; i++) {
+                if (patients[i].getId() == id) {
+                    cout << "\nCurrent Diagnosis: " << patients[i].getDiagnosis() << "\nEnter new diagnosis: ";
+                    string diag; getline(cin, diag);
+                    patients[i].setDiagnosis(diag.c_str());
+                    fh->updatePatient(patients[i]);
+                    cout << "Diagnosis updated!\n";
+                    delete[] patients;
+                    return;
+                }
+            }
+            
+            cout << "Patient not found.\n";
+            delete[] patients;
+        } catch (PermissionDeniedException& e) {
+            cout << e.what() << endl;
         }
-        
-        cout << "Patient not found.\n";
-        delete[] patients;
     }
     
     void deletePatientRecord() {
-        FileHandler* fh = FileHandler::getInstance();
-        Patient* patients; int count;
-        fh->loadAllPatients(patients, count);
-        
-        if (!count) { cout << "No patients registered yet.\n"; return; }
-        
-        cout << "\nPatient List:\n";
-        for (int i = 0; i < count; i++) patients[i].displayShort();
-        
-        cout << "\nEnter patient ID to delete (0 to cancel): ";
-        int id; cin >> id; cin.ignore();
-        if (!id) { delete[] patients; return; }
-        
-        for (int i = 0; i < count; i++) {
-            if (patients[i].getId() == id) {
-                cout << "Confirm deletion?(Y/N): ";
-                char c; cin >> c; cin.ignore();
-                if (toupper(c) == 'Y') { fh->deletePatient(id); cout << "Patient deleted!\n"; }
-                else cout << "Deletion cancelled.\n";
-                delete[] patients;
-                return;
+        try {
+            // Check permission
+            FileHandler* fh = FileHandler::getInstance();
+            int count; bool* rights = fh->getAccessRights("Doctor", count);
+            
+            if (!rights[2]) {
+                delete[] rights;
+                throw PermissionDeniedException();
             }
+            delete[] rights;
+            
+            Patient* patients;
+            fh->loadAllPatients(patients, count);
+            
+            if (!count) { cout << "No patients registered yet.\n"; return; }
+            
+            cout << "\nPatient List:\n";
+            for (int i = 0; i < count; i++) patients[i].displayShort();
+            
+            cout << "\nEnter patient ID to delete (0 to cancel): ";
+            int id; cin >> id; cin.ignore();
+            if (!id) { delete[] patients; return; }
+            
+            for (int i = 0; i < count; i++) {
+                if (patients[i].getId() == id) {
+                    cout << "Confirm deletion?(Y/N): ";
+                    char c; cin >> c; cin.ignore();
+                    if (toupper(c) == 'Y') { fh->deletePatient(id); cout << "Patient deleted!\n"; }
+                    else cout << "Deletion cancelled.\n";
+                    delete[] patients;
+                    return;
+                }
+            }
+            
+            cout << "Patient not found.\n";
+            delete[] patients;
+        } catch (PermissionDeniedException& e) {
+            cout << e.what() << endl;
         }
-        
-        cout << "Patient not found.\n";
-        delete[] patients;
     }
     
 public:
     void displayMenu() override {
-        try {
-            FileHandler* fh = FileHandler::getInstance();
-            int count; bool* rights = fh->getAccessRights("Doctor", count);
-            
-            cout << "\n---Doctor Menu---\n";
-            int opt = 1;
-            if (rights[0]) cout << opt++ << ". View records\n";
-            if (rights[1]) cout << opt++ << ". Update record\n";
-            if (rights[2]) cout << opt++ << ". Delete record\n";
-            cout << opt << ". Back\nEnter your choice: ";
-            
-            delete[] rights;
-        } catch (...) {
-            cout << "\n---Doctor Menu---\n1. Back\nEnter your choice: ";
-        }
+        cout << "\n---Doctor Menu---\n";
+        cout << "1. View records\n";
+        cout << "2. Update record\n";
+        cout << "3. Delete record\n";
+        cout << "4. Back\nEnter your choice: ";
     }
     
     void handleChoice(int choice) override {
-        try {
-            FileHandler* fh = FileHandler::getInstance();
-            int count; bool* rights = fh->getAccessRights("Doctor", count);
-            
-            int opt = 0;
-            for (int i = 0; i < count; i++) {
-                if (rights[i]) {
-                    opt++;
-                    if (opt == choice) {
-                        if (i == 0) viewPatientRecords();
-                        else if (i == 1) updatePatientRecord();
-                        else if (i == 2) deletePatientRecord();
-                        break;
-                    }
-                }
-            }
-            
-            delete[] rights;
-        } catch (...) { cout << "Error loading menu\n"; }
+        switch(choice) {
+            case 1: viewPatientRecords(); break;
+            case 2: updatePatientRecord(); break;
+            case 3: deletePatientRecord(); break;
+        }
     }
 };
 
 class ReceptionistMenuStrategy : public MenuStrategy {
-    void registerPatient() {
-        FileHandler* fh = FileHandler::getInstance();
-        int id = fh->getNextPatientId();
-        
-        cout << "\nPatient Registration\n--------------------------\n";
-        string name, addr, contact;
-        int age; char gender;
-        
-        cout << "Name: "; getline(cin, name);
-        cout << "Age: "; cin >> age; cin.ignore();
-        cout << "Gender (M/F/O): "; cin >> gender; cin.ignore();
-        cout << "Address: "; getline(cin, addr);
-        cout << "Contact: "; getline(cin, contact);
-        
-        Patient p(id, name.c_str(), age, toupper(gender), addr.c_str(), contact.c_str());
-        fh->savePatient(p);
-        cout << "Patient registered with ID: " << id << endl;
+    void viewRecords() {
+        try {
+            // Check permission
+            FileHandler* fh = FileHandler::getInstance();
+            int count; bool* rights = fh->getAccessRights("Receptionist", count);
+            
+            if (!rights[1]) { // View rights is now at index 1
+                delete[] rights;
+                throw PermissionDeniedException();
+            }
+            delete[] rights;
+            
+            Patient* patients;
+            fh->loadAllPatients(patients, count);
+            
+            if (!count) { cout << "No patients registered yet.\n"; return; }
+            
+            cout << "\nPatient List:\n";
+            for (int i = 0; i < count; i++) patients[i].displayShort();
+            
+            cout << "\nEnter patient ID to view (0 to cancel): ";
+            int id; cin >> id; cin.ignore();
+            if (!id) { delete[] patients; return; }
+            
+            for (int i = 0; i < count; i++) {
+                if (patients[i].getId() == id) {
+                    cout << "\nPatient Details:\nID: " << id << "\nName: " << patients[i].getName() 
+                         << "\nAge: " << patients[i].getAge() << "\nGender: " << patients[i].getGender() 
+                         << "\nAddress: " << patients[i].getAddress() << "\nContact: " << patients[i].getContactNumber() << endl;
+                    delete[] patients;
+                    return;
+                }
+            }
+            
+            cout << "Patient not found.\n";
+            delete[] patients;
+        } catch (PermissionDeniedException& e) {
+            cout << e.what() << endl;
+        }
     }
     
-    void viewRecords() {
-        FileHandler* fh = FileHandler::getInstance();
-        Patient* patients; int count;
-        fh->loadAllPatients(patients, count);
-        
-        if (!count) { cout << "No patients registered yet.\n"; return; }
-        
-        cout << "\nPatient List:\n";
-        for (int i = 0; i < count; i++) patients[i].displayShort();
-        
-        cout << "\nEnter patient ID to view (0 to cancel): ";
-        int id; cin >> id; cin.ignore();
-        if (!id) { delete[] patients; return; }
-        
-        for (int i = 0; i < count; i++) {
-            if (patients[i].getId() == id) {
-                cout << "\nPatient Details:\nID: " << id << "\nName: " << patients[i].getName() 
-                     << "\nAge: " << patients[i].getAge() << "\nGender: " << patients[i].getGender() 
-                     << "\nAddress: " << patients[i].getAddress() << "\nContact: " << patients[i].getContactNumber() << endl;
-                delete[] patients;
-                return;
+    void registerPatient() {
+        try {
+            // Check permission
+            FileHandler* fh = FileHandler::getInstance();
+            int count; bool* rights = fh->getAccessRights("Receptionist", count);
+            
+            if (!rights[0]) { // Register rights is now at index 0
+                delete[] rights;
+                throw PermissionDeniedException();
             }
+            delete[] rights;
+            
+            int id = fh->getNextPatientId();
+            
+            cout << "\nPatient Registration\n--------------------------\n";
+            string name, addr, contact;
+            int age; char gender;
+            
+            cout << "Name: "; getline(cin, name);
+            cout << "Age: "; cin >> age; cin.ignore();
+            cout << "Gender (M/F/O): "; cin >> gender; cin.ignore();
+            cout << "Address: "; getline(cin, addr);
+            cout << "Contact: "; getline(cin, contact);
+            
+            Patient p(id, name.c_str(), age, toupper(gender), addr.c_str(), contact.c_str());
+            fh->savePatient(p);
+            cout << "Patient registered with ID: " << id << endl;
+        } catch (PermissionDeniedException& e) {
+            cout << e.what() << endl;
         }
-        
-        cout << "Patient not found.\n";
-        delete[] patients;
     }
     
 public:
     void displayMenu() override {
-        try {
-            FileHandler* fh = FileHandler::getInstance();
-            int count; bool* rights = fh->getAccessRights("Receptionist", count);
-            
-            cout << "\n---Receptionist Menu---\n";
-            int opt = 1;
-            if (rights[0]) cout << opt++ << ". Register patient\n";
-            if (rights[1]) cout << opt++ << ". View records\n";
-            cout << opt << ". Back\nEnter your choice: ";
-            
-            delete[] rights;
-        } catch (...) {
-            cout << "\n---Receptionist Menu---\n1. Back\nEnter your choice: ";
-        }
+        cout << "\n---Receptionist Menu---\n";
+        cout << "1. View records\n";
+        cout << "2. Register patient\n";
+        cout << "3. Back\nEnter your choice: ";
     }
     
     void handleChoice(int choice) override {
-        try {
-            FileHandler* fh = FileHandler::getInstance();
-            int count; bool* rights = fh->getAccessRights("Receptionist", count);
-            
-            int opt = 0;
-            for (int i = 0; i < count; i++) {
-                if (rights[i]) {
-                    opt++;
-                    if (opt == choice) {
-                        if (i == 0) registerPatient();
-                        else if (i == 1) viewRecords();
-                        break;
-                    }
-                }
-            }
-            
-            delete[] rights;
-        } catch (...) { cout << "Error loading menu\n"; }
+        switch(choice) {
+            case 1: viewRecords(); break;
+            case 2: registerPatient(); break;
+        }
     }
 };
 
@@ -592,7 +613,8 @@ public:
     ~Hospital() { delete currentUser; delete currentMenu; }
     
     void start() {
-        while (true) {
+        bool running = false;
+        while (!running) {
             if (!currentUser) {
                 cout << "\n---Hospital Management System---\n1. Admin\n2. Doctor\n3. Receptionist\n4. Exit\nEnter choice: ";
                 int choice = getChoice(1, 4);
