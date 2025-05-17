@@ -383,9 +383,7 @@ class AdminMenuStrategy : public MenuStrategy {
             cout << (i==0?"View":i==1?(role=="Doctor"?"Update":"Register"):"Delete") 
                  << " - " << (rights[i]?"ENABLED":"DISABLED") << endl;
         
-        // Fix: Use dynamically allocated array instead of variable-length array
-        bool* newRights = new bool[count];
-        bool changed = false;
+        bool newRights[count], changed = false;
         copy(rights, rights+count, newRights);
         
         for (int i = 0; i < count; i++) {
@@ -400,9 +398,7 @@ class AdminMenuStrategy : public MenuStrategy {
             else cout << "Changes discarded.\n";
         } else cout << "No changes applied!\n";
         
-        // Fix: Delete both arrays to prevent memory leaks
         delete[] rights;
-        delete[] newRights;
     }
 public:
     void displayMenu() override {
@@ -700,54 +696,43 @@ class Hospital {
 public:
     ~Hospital() { delete currentUser; delete currentMenu; }
     
-    void start() { 
-        bool running = true; 
-        while (running) { 
-            try { 
-                if (!currentUser) { 
-                    cout << "\n---Hospital Management System---\n1. Admin\n2. Doctor\n3. Receptionist\n4. Exit\nEnter choice: "; 
-                    int choice = getMenuChoice(1, 4); 
+    void start() {
+        bool running = true;
+        while (running) {
+            try {
+                if (!currentUser) {
+                    cout << "\n---Hospital Management System---\n1. Admin\n2. Doctor\n3. Receptionist\n4. Exit\nEnter choice: ";
+                    int choice = getMenuChoice(1, 4);
                     
-                    if (choice == -1) continue; 
-                    if (choice == 4) { cout << "Goodbye!\n"; break; } 
+                    if (choice == -1) continue;
+                    if (choice == 4) { cout << "Goodbye!\n"; break; }
                     
                     try { login(choice); } 
-                    catch (InvalidCredentialsException& e) { cout << e.what() << endl; } 
-                } else { 
-                    currentMenu->displayMenu(); 
-                    // Set the max choice based on the menu type
-                    int maxChoice; 
-                    if (dynamic_cast<AdminMenuStrategy*>(currentMenu)) { 
-                        maxChoice = 3; 
-                    } else if (dynamic_cast<DoctorMenuStrategy*>(currentMenu)) { 
-                        maxChoice = 4; 
-                    } else if (dynamic_cast<ReceptionistMenuStrategy*>(currentMenu)) { 
-                        maxChoice = 3; 
-                    } else { 
-                        maxChoice = 10; // Default fallback
-                    } 
-                    int choice = getMenuChoice(1, maxChoice); 
+                    catch (InvalidCredentialsException& e) { cout << e.what() << endl; }
+                } else {
+                    currentMenu->displayMenu();
+                    int choice = getMenuChoice(1, 10);
                     
-                    if (choice == -1) continue; 
+                    if (choice == -1) continue;
                     
-                    if ((dynamic_cast<AdminMenuStrategy*>(currentMenu) && choice == 3) || 
-                        (dynamic_cast<DoctorMenuStrategy*>(currentMenu) && choice == 4) || 
-                        (dynamic_cast<ReceptionistMenuStrategy*>(currentMenu) && choice == 3)) { 
-                        delete currentUser; currentUser = nullptr; 
-                        delete currentMenu; currentMenu = nullptr; 
-                        continue; 
-                    } 
+                    if ((dynamic_cast<AdminMenuStrategy*>(currentMenu) && choice == 3) ||
+                        (dynamic_cast<DoctorMenuStrategy*>(currentMenu) && choice == 4) ||
+                        (dynamic_cast<ReceptionistMenuStrategy*>(currentMenu) && choice == 3)) {
+                        delete currentUser; currentUser = nullptr;
+                        delete currentMenu; currentMenu = nullptr;
+                        continue;
+                    }
                     
-                    currentMenu->handleChoice(choice); 
-                } 
-            } catch (HospitalException& e) { 
-                cout << "Error: " << e.what() << endl; 
-            } catch (exception& e) { 
-                cout << "System error: " << e.what() << endl; 
-            } catch (...) { 
-                cout << "An unknown error occurred." << endl; 
-            } 
-        } 
+                    currentMenu->handleChoice(choice);
+                }
+            } catch (HospitalException& e) {
+                cout << "Error: " << e.what() << endl;
+            } catch (exception& e) {
+                cout << "System error: " << e.what() << endl;
+            } catch (...) {
+                cout << "An unknown error occurred." << endl;
+            }
+        }
     }
 };
 
