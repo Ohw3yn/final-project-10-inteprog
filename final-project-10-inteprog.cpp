@@ -720,7 +720,7 @@ class ReceptionistMenuStrategy : public MenuStrategy
             bool *rights = fh->getAccessRights("Receptionist", count);
 
             if (!rights[1])
-            { // View rights is now at index 1
+            {
                 delete[] rights;
                 throw PermissionDeniedException();
             }
@@ -739,16 +739,50 @@ class ReceptionistMenuStrategy : public MenuStrategy
             for (int i = 0; i < count; i++)
                 patients[i].displayShort();
 
-            cout << "\nEnter patient ID to view (0 to cancel): ";
-            int id;
-            cin >> id;
-            cin.ignore();
-            if (!id)
+            int id = 0;
+            bool validInput = false;
+            while (!validInput)
+            {
+                try
+                {
+                    cout << "\nEnter patient ID to view (0 to cancel): ";
+                    string idStr;
+                    getline(cin, idStr);
+
+                    if (idStr.empty())
+                        throw InvalidInputException();
+
+                    for (char c : idStr)
+                    {
+                        if (!isdigit(c))
+                            throw InvalidInputException();
+                    }
+
+                    id = stoi(idStr);
+
+                    validInput = true;
+                }
+                catch (InvalidInputException &e)
+                {
+                    cout << "Invalid input!\n";
+                }
+                catch (std::out_of_range &e)
+                {
+                    cout << "ID value is too large! Please enter a smaller number.\n";
+                }
+                catch (std::exception &e)
+                {
+                    cout << "An error occurred: " << e.what() << "\n";
+                }
+            }
+
+            if (id == 0)
             {
                 delete[] patients;
                 return;
             }
 
+            bool found = false;
             for (int i = 0; i < count; i++)
             {
                 if (patients[i].getId() == id)
@@ -756,17 +790,29 @@ class ReceptionistMenuStrategy : public MenuStrategy
                     cout << "\nPatient Details:\nID: " << id << "\nName: " << patients[i].getName()
                          << "\nAge: " << patients[i].getAge() << "\nGender: " << patients[i].getGender()
                          << "\nAddress: " << patients[i].getAddress() << "\nContact: " << patients[i].getContactNumber() << endl;
-                    delete[] patients;
-                    return;
+                    found = true;
+                    break;
                 }
             }
 
-            cout << "Patient not found.\n";
+            if (!found)
+            {
+                cout << "Patient not found with ID: " << id << "\n";
+            }
+
             delete[] patients;
         }
         catch (PermissionDeniedException &e)
         {
             cout << e.what() << endl;
+        }
+        catch (HospitalException &e)
+        {
+            cout << "Hospital system error: " << e.what() << endl;
+        }
+        catch (std::exception &e)
+        {
+            cout << "Unexpected error: " << e.what() << endl;
         }
     }
 
