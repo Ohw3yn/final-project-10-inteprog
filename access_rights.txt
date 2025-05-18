@@ -1,2 +1,2 @@
-Doctor|0|1|1
+Doctor|1|1|1
 Receptionist|1|1
