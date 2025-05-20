@@ -857,7 +857,7 @@ public:
                     int choice = getMenuChoice(1, 4); 
                     
                     if (choice == 4) { 
-                        cout << "Thank you for using Hospital Management System. Goodbye!\n"; 
+                        cout << "Thank you for using our Hospital Management System. Goodbye!\n"; 
                         running = false;
                         break; 
                     } 

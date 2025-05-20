@@ -313,6 +313,7 @@ public:
 };
 
 FileHandler* FileHandler::instance = nullptr;
+
 // Utility functions for input validation
 bool isValidInteger(const string& input) {
     return !input.empty() && find_if(input.begin(), input.end(), 
@@ -414,9 +415,24 @@ class AdminMenuStrategy : public MenuStrategy {
         
         for (int i = 0; i < count; i++) {
             string action = (i==0?"view":i==1?(strcmp(role,"Doctor")==0?"update":"register"):"delete");
-            char c = getYesNo("Disable " + action + "? (Y/N): ");
-            if (c == 'Y' && rights[i]) { newRights[i] = false; changed = true; }
-            else if (c == 'N' && !rights[i]) { newRights[i] = true; changed = true; }
+            
+            // Fixed logic: Ask to enable if currently disabled, ask to disable if currently enabled
+            char c;
+            if (rights[i]) {
+                // Currently enabled, ask if they want to disable it
+                c = getYesNo("Disable " + action + "? (Y/N): ");
+                if (c == 'Y') { 
+                    newRights[i] = false; 
+                    changed = true; 
+                }
+            } else {
+                // Currently disabled, ask if they want to enable it
+                c = getYesNo("Enable " + action + "? (Y/N): ");
+                if (c == 'Y') { 
+                    newRights[i] = true; 
+                    changed = true; 
+                }
+            }
         }
         
         if (changed) {
@@ -815,7 +831,7 @@ class Hospital {
             }
         }
     }
-    
+
 public:
     ~Hospital() { 
         delete currentUser; 
@@ -841,7 +857,7 @@ public:
                     int choice = getMenuChoice(1, 4); 
                     
                     if (choice == 4) { 
-                        cout << "Thank you for using Hospital Management System. Goodbye!\n"; 
+                        cout << "Thank you for using our Hospital Management System. Goodbye!\n"; 
                         running = false;
                         break; 
                     } 
