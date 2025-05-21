@@ -8,13 +8,12 @@ using namespace std;
 
 class HospitalException : public exception
 {
-protected: // Changed from private to protected for better inheritance
     char *message;
 
 public:
     HospitalException(const char *msg) : message(new char[strlen(msg) + 1]) { strcpy(message, msg); }
-    virtual ~HospitalException() { delete[] message; } // Added virtual for proper inheritance
-    const char *what() const throw() override { return message; } // Added override for clarity
+    ~HospitalException() { delete[] message; }
+    const char *what() const throw() { return message; }
 };
 
 class InvalidCredentialsException : public HospitalException
@@ -74,30 +73,6 @@ public:
         strcpy(this->contactNumber, contactNumber);
         this->diagnosis = new char[strlen(diagnosis) + 1];
         strcpy(this->diagnosis, diagnosis);
-    }
-
-    // Added assignment operator to prevent memory leaks
-    Patient& operator=(const Patient& other) {
-        if (this != &other) {
-            delete[] name;
-            delete[] address;
-            delete[] contactNumber;
-            delete[] diagnosis;
-            
-            id = other.id;
-            age = other.age;
-            gender = other.gender;
-            
-            name = new char[strlen(other.name) + 1];
-            strcpy(name, other.name);
-            address = new char[strlen(other.address) + 1];
-            strcpy(address, other.address);
-            contactNumber = new char[strlen(other.contactNumber) + 1];
-            strcpy(contactNumber, other.contactNumber);
-            diagnosis = new char[strlen(other.diagnosis) + 1];
-            strcpy(diagnosis, other.diagnosis);
-        }
-        return *this;
     }
 
     Patient(const Patient &other) : Patient(other.id, other.name, other.age, other.gender, other.address, other.contactNumber, other.diagnosis) {}
@@ -197,7 +172,7 @@ public:
         strcpy(this->password, password);
     }
 
-    virtual ~User()
+    virtual ~User ()
     {
         delete[] username;
         delete[] password;
@@ -233,17 +208,6 @@ public:
         if (!instance)
             instance = new FileHandler();
         return instance;
-    }
-    
-    // Added destructor to prevent memory leaks
-    ~FileHandler() {
-        // Cleanup if needed
-    }
-    
-    // Added method to properly clean up the singleton
-    static void destroy() {
-        delete instance;
-        instance = nullptr;
     }
 
     void savePatient(const Patient &p)
@@ -467,29 +431,27 @@ class AdminMenuStrategy : public MenuStrategy
                                               : "Delete")
                  << " - " << (rights[i] ? "ENABLED" : "DISABLED") << endl;
 
-        bool newRights[3]; // Using fixed size array instead of VLA for better compatibility
-        for (int i = 0; i < count; i++) {
-            newRights[i] = rights[i]; // Manual copy instead of using std::copy
-        }
-        
-        bool changed = false;
+        bool newRights[count], changed = false;
+        copy(rights, rights + count, newRights);
 
         for (int i = 0; i < count; i++)
         {
-            cout << "Disable " << (i == 0 ? "view" : i == 1 ? (role == "Doctor" ? "update" : "register")
-                                                            : "delete")
-                 << "?(Y/N): ";
+            string action = (i == 0 ? "view" : i == 1 ? (role == "Doctor" ? "update" : "register") : "delete");
+            
+            // Ask whether to enable or disable based on current state
+            if (rights[i]) {
+                cout << "Disable " << action << "? (Y/N): ";
+            } else {
+                cout << "Enable " << action << "? (Y/N): ";
+            }
+            
             char c;
             cin >> c;
             cin.ignore();
-            if (toupper(c) == 'Y' && rights[i])
-            {
-                newRights[i] = false;
-                changed = true;
-            }
-            else if (toupper(c) == 'N' && !rights[i])
-            {
-                newRights[i] = true;
+            
+            if (toupper(c) == 'Y') {
+                // If it's currently enabled, disable it, and vice versa
+                newRights[i] = !rights[i];
                 changed = true;
             }
         }
@@ -619,32 +581,44 @@ class DoctorMenuStrategy : public MenuStrategy
             for (int i = 0; i < count; i++)
                 patients[i].displayShort();
 
-            cout << "\nEnter patient ID to update (0 to cancel): ";
-            int id;
-            cin >> id;
-            cin.ignore();
-            if (!id)
+            int id = 0;
+            bool validPatient = false;
+            
+            while (!validPatient)
             {
-                delete[] patients;
-                return;
-            }
-
-            for (int i = 0; i < count; i++)
-            {
-                if (patients[i].getId() == id)
+                cout << "\nEnter patient ID to update (0 to cancel): ";
+                cin >> id;
+                cin.ignore();
+                
+                if (id == 0)
                 {
-                    cout << "\nCurrent Diagnosis: " << patients[i].getDiagnosis() << "\nEnter new diagnosis: ";
-                    string diag;
-                    getline(cin, diag);
-                    patients[i].setDiagnosis(diag.c_str());
-                    fh->updatePatient(patients[i]);
-                    cout << "Diagnosis updated!\n";
                     delete[] patients;
                     return;
                 }
-            }
 
-            cout << "Patient not found.\n";
+                bool found = false;
+                for (int i = 0; i < count; i++)
+                {
+                    if (patients[i].getId() == id)
+                    {
+                        cout << "\nCurrent Diagnosis: " << patients[i].getDiagnosis() << "\nEnter new diagnosis: ";
+                        string diag;
+                        getline(cin, diag);
+                        patients[i].setDiagnosis(diag.c_str());
+                        fh->updatePatient(patients[i]);
+                        cout << "Diagnosis updated!\n";
+                        found = true;
+                        validPatient = true;
+                        break;
+                    }
+                }
+
+                if (!found)
+                {
+                    cout << "Patient not found. Please try again.\n";
+                }
+            }
+            
             delete[] patients;
         }
         catch (PermissionDeniedException &e)
@@ -682,37 +656,47 @@ class DoctorMenuStrategy : public MenuStrategy
             for (int i = 0; i < count; i++)
                 patients[i].displayShort();
 
-            cout << "\nEnter patient ID to delete (0 to cancel): ";
-            int id;
-            cin >> id;
-            cin.ignore();
-            if (!id)
+            int id = 0;
+            bool validPatient = false;
+            
+            while (!validPatient)
             {
-                delete[] patients;
-                return;
-            }
-
-            for (int i = 0; i < count; i++)
-            {
-                if (patients[i].getId() == id)
+                cout << "\nEnter patient ID to delete (0 to cancel): ";
+                cin >> id;
+                cin.ignore();
+                
+                if (id == 0)
                 {
-                    cout << "Confirm deletion?(Y/N): ";
-                    char c;
-                    cin >> c;
-                    cin.ignore();
-                    if (toupper(c) == 'Y')
-                    {
-                        fh->deletePatient(id);
-                        cout << "Patient deleted!\n";
-                    }
-                    else
-                        cout << "Deletion cancelled.\n";
                     delete[] patients;
                     return;
                 }
-            }
 
-            cout << "Patient not found.\n";
+                bool found = false;
+                for (int i = 0; i < count; i++)
+                {
+                    if (patients[i].getId() == id)
+                    {
+                        found = true;
+                        cout << "Confirm deletion?(Y/N): ";
+                        char c;
+                        cin >> c;
+                        cin.ignore();
+                        if (toupper(c) == 'Y')
+                        {
+                        fh->deletePatient(id);
+                            cout << "Patient record deleted.\n";
+                        }
+                        validPatient = true;
+                        break;
+                    }
+                }
+
+                if (!found)
+                {
+                    cout << "Patient not found. Please try again.\n";
+                }
+            }
+            
             delete[] patients;
         }
         catch (PermissionDeniedException &e)
@@ -724,377 +708,66 @@ class DoctorMenuStrategy : public MenuStrategy
 public:
     void displayMenu() override
     {
-        cout << "\n---Doctor Menu---\n";
-        cout << "1. View records\n";
-        cout << "2. Update record\n";
-        cout << "3. Delete record\n";
-        cout << "4. Back\nEnter your choice: ";
+        cout << "\n---Doctor---\n1. View Patient Records\n2. Update Patient Record\n3. Delete Patient Record\n4. Back\nEnter your choice: ";
     }
 
     void handleChoice(int choice) override
     {
-        switch (choice)
-        {
-        case 1:
+        if (choice == 1)
             viewPatientRecords();
-            break;
-        case 2:
+        else if (choice == 2)
             updatePatientRecord();
-            break;
-        case 3:
+        else if (choice == 3)
             deletePatientRecord();
-            break;
-        }
     }
 };
 
 class ReceptionistMenuStrategy : public MenuStrategy
 {
-    // Helper method to improve code reuse
-    bool isStringEmpty(const string &str) const {
-        if (str.empty()) return true;
-        for (size_t i = 0; i < str.length(); i++) {
-            if (!isspace(str[i])) return false;
-        }
-        return true;
-    }
-
-    void viewRecords()
-    {
-        try
-        {
-            // Check permission
-            FileHandler *fh = FileHandler::getInstance();
-            int count;
-            bool *rights = fh->getAccessRights("Receptionist", count);
-
-            if (!rights[1])
-            {
-                delete[] rights;
-                throw PermissionDeniedException();
-            }
-            delete[] rights;
-
-            Patient *patients;
-            fh->loadAllPatients(patients, count);
-
-            if (!count)
-            {
-                cout << "No patients registered yet.\n";
-                return;
-            }
-
-            cout << "\nPatient List:\n";
-            for (int i = 0; i < count; i++)
-                patients[i].displayShort();
-
-            int id = 0;
-            bool validInput = false;
-            while (!validInput)
-            {
-                try
-                {
-                    cout << "\nEnter patient ID to view (0 to cancel): ";
-                    string idStr;
-                    getline(cin, idStr);
-
-                    if (isStringEmpty(idStr))
-                        throw InvalidInputException();
-
-                    for (char c : idStr)
-                    {
-                        if (!isdigit(c))
-                            throw InvalidInputException();
-                    }
-
-                    id = stoi(idStr);
-
-                    validInput = true;
-                }
-                catch (InvalidInputException &e)
-                {
-                    cout << "Invalid input!";
-                }
-                catch (std::out_of_range &e)
-                {
-                    cout << "ID value is too large! Please enter a smaller number.";
-                }
-                catch (std::exception &e)
-                {
-                    cout << "An error occurred: " << e.what() << "\n";
-                }
-            }
-
-            if (id == 0)
-            {
-                delete[] patients;
-                return;
-            }
-
-            bool found = false;
-            for (int i = 0; i < count; i++)
-            {
-                if (patients[i].getId() == id)
-                {
-                    cout << "\nPatient Details:\nID: " << id << "\nName: " << patients[i].getName()
-                         << "\nAge: " << patients[i].getAge() << "\nGender: " << patients[i].getGender()
-                         << "\nAddress: " << patients[i].getAddress() << "\nContact: " << patients[i].getContactNumber() << endl;
-                    found = true;
-                    break;
-                }
-            }
-
-            if (!found)
-            {
-                cout << "Patient not found with ID: " << id << "\n";
-            }
-
-            delete[] patients;
-        }
-        catch (PermissionDeniedException &e)
-        {
-            cout << e.what() << endl;
-        }
-        catch (HospitalException &e)
-        {
-            cout << "Hospital system error: " << e.what() << endl;
-        }
-        catch (std::exception &e)
-        {
-            cout << "Unexpected error: " << e.what() << endl;
-        }
-    }
-
-    bool isWhiteSpace(const string &input)
-    {
-        for (char c : input)
-        {
-            if (!isspace(c))
-            {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    bool isValidReceptionistMenuInput(const string &input)
-    {
-        if (input.empty() || isWhiteSpace(input))
-        {
-            return false;
-        }
-
-        for (char c : input)
-        {
-            if (!isdigit(c))
-            {
-                return false;
-            }
-        }
-
-        try
-        {
-            int choice = stoi(input);
-            return (choice >= 1 && choice <= 3);
-        }
-        catch (const std::exception &)
-        {
-            return false;
-        }
-    }
-
-    void execute()
-    {
-        while (true)
-        {
-            cout << "\n------- Receptionist Menu --------\n";
-            cout << "1. View Records\n";
-            cout << "2. Register Patient\n";
-            cout << "3. Back\n";
-            cout << "Enter your choice: ";
-
-            string input;
-            getline(cin, input);
-
-            if (!isValidReceptionistMenuInput(input))
-            {
-                cout << "Invalid input! Please enter only numbers between 1-3.\n";
-                continue;
-            }
-
-            int choice = stoi(input);
-
-            switch (choice)
-            {
-            case 1:
-                viewRecords();
-                break;
-            case 2:
-                registerPatient();
-                break;
-            case 3:
-                return;
-            default:
-                // This should never execute due to validation
-                cout << "Invalid choice. Please try again.\n";
-            }
-        }
-    }
-
     void registerPatient()
     {
         try
         {
-            // Check permission
             FileHandler *fh = FileHandler::getInstance();
-            int count;
-            bool *rights = fh->getAccessRights("Receptionist", count);
+            Patient p;
+            p.setId(fh->getNextPatientId());
 
-            if (!rights[0])
-            {
-                delete[] rights;
-                throw PermissionDeniedException();
-            }
-            delete[] rights;
+            cout << "Enter patient name: ";
+            string name;
+            getline(cin, name);
+            p.setName(name.c_str());
 
-            int id = fh->getNextPatientId();
-
-            cout << "\nPatient Registration\n--------------------------\n";
-            string name, addr, contact;
+            cout << "Enter patient age: ";
             int age;
+            cin >> age;
+            cin.ignore();
+            p.setAge(age);
+
+            cout << "Enter patient gender (M/F): ";
             char gender;
+            cin >> gender;
+            cin.ignore();
+            p.setGender(gender);
 
-            bool validInput = false;
-            while (!validInput)
-            {
-                try
-                {
-                    cout << "Name: ";
-                    getline(cin, name);
+            cout << "Enter patient address: ";
+            string address;
+            getline(cin, address);
+            p.setAddress(address.c_str());
 
-                    if (name.empty() || isStringEmpty(name)) // Using the new helper method
-                        throw InvalidInputException();
+            cout << "Enter patient contact number: ";
+            string contact;
+            getline(cin, contact);
+            p.setContactNumber(contact.c_str());
 
-                    for (char c : name)
-                    {
-                        if (!isalpha(c) && !isspace(c))
-                            throw InvalidInputException();
-                    }
-                    validInput = true;
-                }
-                catch (InvalidInputException &e)
-                {
-                    cout << "Invalid input!\n";
-                }
-            }
+            cout << "Enter patient diagnosis: ";
+            string diagnosis;
+            getline(cin, diagnosis);
+            p.setDiagnosis(diagnosis.c_str());
 
-            validInput = false;
-            while (!validInput)
-            {
-                try
-                {
-                    cout << "Age: ";
-                    string ageStr;
-                    getline(cin, ageStr);
-
-                    if (ageStr.empty())
-                        throw InvalidInputException();
-
-                    for (char c : ageStr)
-                    {
-                        if (!isdigit(c))
-                            throw InvalidInputException();
-                    }
-
-                    age = stoi(ageStr);
-                    if (age <= 0 || age > 150)
-                        throw InvalidInputException();
-
-                    validInput = true;
-                }
-                catch (InvalidInputException &e)
-                {
-                    cout << "Invalid input!\n";
-                }
-            }
-
-            validInput = false;
-            while (!validInput)
-            {
-                try
-                {
-                    cout << "Gender (M/F/O): ";
-                    string genderStr;
-                    getline(cin, genderStr);
-
-                    if (genderStr.length() != 1)
-                        throw InvalidInputException();
-
-                    gender = toupper(genderStr[0]);
-                    if (gender != 'M' && gender != 'F' && gender != 'O')
-                        throw InvalidInputException();
-
-                    validInput = true;
-                }
-                catch (InvalidInputException &e)
-                {
-                    cout << "Invalid input!\n";
-                }
-            }
-
-            validInput = false;
-            while (!validInput)
-            {
-                try
-                {
-                    cout << "Address: ";
-                    getline(cin, addr);
-
-                    if (addr.empty() || isStringEmpty(addr))
-                        throw InvalidInputException();
-
-                    for (char c : addr)
-                    {
-                        if (!isalnum(c) && !isspace(c) && c != ',' && c != '.' && c != '-' && c != '/' && c != '#')
-                            throw InvalidInputException();
-                    }
-                    validInput = true;
-                }
-                catch (InvalidInputException &e)
-                {
-                    cout << "Invalid input!\n";
-                }
-            }
-
-            validInput = false;
-            while (!validInput)
-            {
-                try
-                {
-                    cout << "Contact: ";
-                    getline(cin, contact);
-
-                    if (contact.empty())
-                        throw InvalidInputException();
-
-                    for (char c : contact)
-                    {
-                        if (!isdigit(c))
-                            throw InvalidInputException();
-                    }
-                    validInput = true;
-                }
-                catch (InvalidInputException &e)
-                {
-                    cout << "Invalid input!\n";
-                }
-            }
-
-            Patient p(id, name.c_str(), age, toupper(gender), addr.c_str(), contact.c_str());
             fh->savePatient(p);
-            cout << "Patient registered with ID: " << id << endl;
+            cout << "Patient registered successfully with ID: " << p.getId() << endl;
         }
-        catch (PermissionDeniedException &e)
+        catch (const HospitalException &e)
         {
             cout << e.what() << endl;
         }
@@ -1103,212 +776,39 @@ class ReceptionistMenuStrategy : public MenuStrategy
 public:
     void displayMenu() override
     {
-        cout << "\n---Receptionist Menu---\n";
-        cout << "1. View records\n";
-        cout << "2. Register patient\n";
-        cout << "3. Back\nEnter your choice: ";
+        cout << "\n---Receptionist---\n1. Register Patient\n2. Back\nEnter your choice: ";
     }
 
     void handleChoice(int choice) override
     {
-        switch (choice)
-        {
-        case 1:
-            viewRecords();
-            break;
-        case 2:
+        if (choice == 1)
             registerPatient();
-            break;
-        }
     }
 };
 
-class Admin : public User
+class HospitalManagementSystem
 {
+    User *currentUser ;
+
 public:
-    Admin() : User("Admin", "admin") {}
-    MenuStrategy *createMenuStrategy() override { return new AdminMenuStrategy(); }
-};
-
-class Doctor : public User
-{
-public:
-    Doctor() : User("Doctor", "doctor") {}
-    MenuStrategy *createMenuStrategy() override { return new DoctorMenuStrategy(); }
-};
-
-class Receptionist : public User
-{
-public:
-    Receptionist() : User("Receptionist", "receptionist") {}
-    MenuStrategy *createMenuStrategy() override { return new ReceptionistMenuStrategy(); }
-};
-
-class Hospital
-{
-    User *currentUser = nullptr;
-    MenuStrategy *currentMenu = nullptr;
-
-    int getChoice(int min, int max)
+    void login()
     {
-        string choiceStr;
-        int choice = 0;
-        bool validInput = false;
+        // Implement login logic here
+    }
 
-        while (!validInput)
+    void run()
+    {
+        while (true)
         {
-            try
-            {
-                getline(cin, choiceStr);
-
-                if (choiceStr.empty())
-                    throw InvalidInputException();
-
-                for (char c : choiceStr)
-                {
-                    if (!isdigit(c))
-                        throw InvalidInputException();
-                }
-
-                choice = stoi(choiceStr);
-
-                if (choice < min || choice > max)
-                    throw InvalidInputException();
-
-                validInput = true;
-            }
-            catch (InvalidInputException &e)
-            {
-                cout << "Invalid input. Enter a number between " << min << " and " << max << ": ";
-            }
-            catch (std::out_of_range &e)
-            {
-                cout << "Number too large! Enter a number between " << min << " and " << max << ": ";
-            }
-            catch (std::exception &e)
-            {
-                cout << "An error occurred: " << e.what() << "\nEnter a number between " << min << " and " << max << ": ";
-            }
-        }
-
-        return choice;
-    }
-
-    void login(int role)
-    {
-        string username, password;
-        if (role == 1)
-            username = "Admin";
-        else if (role == 2)
-            username = "Doctor";
-        else if (role == 3)
-            username = "Receptionist";
-
-        cout << "User: " << username << "\nEnter password: ";
-        getline(cin, password);
-
-        if ((role == 1 && password == "admin") ||
-            (role == 2 && password == "doctor") ||
-            (role == 3 && password == "receptionist"))
-        {
-            if (role == 1)
-                currentUser = new Admin();
-            else if (role == 2)
-                currentUser = new Doctor();
-            else if (role == 3)
-                currentUser = new Receptionist();
-            cout << "Login successful!\n";
-            currentMenu = currentUser->createMenuStrategy();
-        }
-        else
-            throw InvalidCredentialsException();
-    }
-
-public:
-    ~Hospital()
-    {
-        delete currentUser;
-        delete currentMenu;
-    }
-
-    void start()
-    {
-        bool running = true;
-        while (running)
-        {
-            if (!currentUser)
-            {
-                cout << "\n---Hospital Management System---\n1. Admin\n2. Doctor\n3. Receptionist\n4. Exit\nEnter choice: ";
-                int choice = getChoice(1, 4);
-                if (choice == 4)
-                {
-                    cout << "Goodbye!\n";
-                    running = false;
-                    break;
-                }
-
-                try
-                {
-                    login(choice);
-                }
-                catch (InvalidCredentialsException &e)
-                {
-                    cout << e.what() << endl;
-                }
-                catch (std::exception &e)
-                {
-                    cout << "Error: " << e.what() << endl;
-                }
-            }
-            else
-            {
-                try
-                {
-                    currentMenu->displayMenu();
-                    int choice;
-
-                    if (dynamic_cast<Admin *>(currentUser))
-                        choice = getChoice(1, 3);
-                    else if (dynamic_cast<Doctor *>(currentUser))
-                        choice = getChoice(1, 4);
-                    else if (dynamic_cast<Receptionist *>(currentUser))
-                        choice = getChoice(1, 3);
-
-                    if ((dynamic_cast<Admin *>(currentUser) && choice == 3) ||
-                        (dynamic_cast<Doctor *>(currentUser) && choice == 4) ||
-                        (dynamic_cast<Receptionist *>(currentUser) && choice == 3))
-                    {
-                        delete currentUser;
-                        currentUser = nullptr;
-                        delete currentMenu;
-                        currentMenu = nullptr;
-                        continue;
-                    }
-                    currentMenu->handleChoice(choice);
-                }
-                catch (HospitalException &e)
-                {
-                    cout << "Hospital system error: " << e.what() << endl;
-                }
-                catch (std::exception &e)
-                {
-                    cout << "Error occurred: " << e.what() << endl;
-                }
-            }
+            // Display main menu and handle user choice
         }
     }
 };
 
 int main()
 {
-    try
-    {
-        Hospital().start();
-    }
-    catch (...)
-    {
-        cout << "Fatal error\n";
-        return 1;
-    }
+    HospitalManagementSystem hms;
+    hms.login();
+    hms.run();
     return 0;
 }
