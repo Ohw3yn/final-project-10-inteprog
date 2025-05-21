@@ -436,20 +436,22 @@ class AdminMenuStrategy : public MenuStrategy
 
         for (int i = 0; i < count; i++)
         {
-            cout << "Disable " << (i == 0 ? "view" : i == 1 ? (role == "Doctor" ? "update" : "register")
-                                                            : "delete")
-                 << "?(Y/N): ";
+            string action = (i == 0 ? "view" : i == 1 ? (role == "Doctor" ? "update" : "register") : "delete");
+            
+            // Ask whether to enable or disable based on current state
+            if (rights[i]) {
+                cout << "Disable " << action << "? (Y/N): ";
+            } else {
+                cout << "Enable " << action << "? (Y/N): ";
+            }
+            
             char c;
             cin >> c;
             cin.ignore();
-            if (toupper(c) == 'Y' && rights[i])
-            {
-                newRights[i] = false;
-                changed = true;
-            }
-            else if (toupper(c) == 'N' && !rights[i])
-            {
-                newRights[i] = true;
+            
+            if (toupper(c) == 'Y') {
+                // If it's currently enabled, disable it, and vice versa
+                newRights[i] = !rights[i];
                 changed = true;
             }
         }
@@ -621,85 +623,85 @@ class DoctorMenuStrategy : public MenuStrategy
     }
         catch (PermissionDeniedException &e)
         {
-            cout << e.what() << endl;
+        cout << e.what() << endl;
         }
     }
 
     void deletePatientRecord()
     {
-    try
-    {
-        // Check permission
-        FileHandler *fh = FileHandler::getInstance();
-        int count;
-        bool *rights = fh->getAccessRights("Doctor", count);
-
-        if (!rights[2])
+        try
         {
+            // Check permission
+            FileHandler *fh = FileHandler::getInstance();
+            int count;
+            bool *rights = fh->getAccessRights("Doctor", count);
+
+            if (!rights[2])
+            {
+                delete[] rights;
+                throw PermissionDeniedException();
+            }
             delete[] rights;
-            throw PermissionDeniedException();
-        }
-        delete[] rights;
 
-        Patient *patients;
-        fh->loadAllPatients(patients, count);
+            Patient *patients;
+            fh->loadAllPatients(patients, count);
 
-        if (!count)
-        {
-            cout << "No patients registered yet.\n";
-            return;
-        }
-
-        cout << "\nPatient List:\n";
-        for (int i = 0; i < count; i++)
-            patients[i].displayShort();
-
-            int id = 0;
-        bool validPatient = false;
-        
-            while (!validPatient)
+            if (!count)
             {
-            cout << "\nEnter patient ID to delete (0 to cancel): ";
-            cin >> id;
-            cin.ignore();
-            
-            if (id == 0)
-            {
-                delete[] patients;
+                cout << "No patients registered yet.\n";
                 return;
             }
 
-            bool found = false;
+            cout << "\nPatient List:\n";
             for (int i = 0; i < count; i++)
+                patients[i].displayShort();
+
+            int id = 0;
+            bool validPatient = false;
+            
+            while (!validPatient)
             {
-                if (patients[i].getId() == id)
+                cout << "\nEnter patient ID to delete (0 to cancel): ";
+                cin >> id;
+                cin.ignore();
+                
+                if (id == 0)
                 {
-                    found = true;
-                    cout << "Confirm deletion?(Y/N): ";
-                    char c;
-                    cin >> c;
-                    cin.ignore();
-                    if (toupper(c) == 'Y')
+                    delete[] patients;
+                    return;
+                }
+
+                bool found = false;
+                for (int i = 0; i < count; i++)
+                {
+                    if (patients[i].getId() == id)
                     {
-                        fh->deletePatient(id);
-                        cout << "Patient deleted!\n";
+                        found = true;
+                        cout << "Confirm deletion?(Y/N): ";
+                        char c;
+                        cin >> c;
+                        cin.ignore();
+                        if (toupper(c) == 'Y')
+                        {
+                            fh->deletePatient(id);
+                            cout << "Patient deleted!\n";
+                        }
+                        else
+                            cout << "Deletion cancelled.\n";
+                        
+                        validPatient = true;
+                        break;
                     }
-                    else
-                        cout << "Deletion cancelled.\n";
-                    
-                    validPatient = true;
-                    break;
+                }
+
+                if (!found)
+                {
+                    cout << "Patient not found. Please try again.\n";
                 }
             }
-
-            if (!found)
-            {
-                cout << "Patient not found. Please try again.\n";
-            }
+            
+            delete[] patients;
         }
-        
-        delete[] patients;
-    }
         catch (PermissionDeniedException &e)
         {
             cout << e.what() << endl;

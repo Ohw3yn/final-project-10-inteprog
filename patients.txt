@@ -1,6 +1,6 @@
-1|Xyrus Aerson Geluz|20|M|Pob. 4, Cuenca, Batangas|09760787467|Fracture
+1|Xyrus Aerson Geluz|20|M|Pob. 4, Cuenca, Batangas|09760787467|aaaa
 2|Miahllet Athena|19|F|Dalipit East, Cuenca, Batangas|09768273441|Nangiiwan
 3|Owen Frey|21|M|Ibabao, Cuenca, Batangas|09297272131|Pogi
 4|Lebron James|40|M|Lipa, Batangas|09167423418|
 5|Enjey Kashlee|20|M|Pob. 2, Cuenca, Batangas|09728273123|
-6|Franco Gian|18|M|De La Salle Lipa|09909929293|
+6|Franco Gian|18|M|De La Salle Lipa|09909929293|pogi
