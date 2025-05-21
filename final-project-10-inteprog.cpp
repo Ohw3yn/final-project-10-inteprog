@@ -8,12 +8,13 @@ using namespace std;
 
 class HospitalException : public exception
 {
+protected: // Changed from private to protected for better inheritance
     char *message;
 
 public:
     HospitalException(const char *msg) : message(new char[strlen(msg) + 1]) { strcpy(message, msg); }
-    ~HospitalException() { delete[] message; }
-    const char *what() const throw() { return message; }
+    virtual ~HospitalException() { delete[] message; } // Added virtual for proper inheritance
+    const char *what() const throw() override { return message; } // Added override for clarity
 };
 
 class InvalidCredentialsException : public HospitalException
@@ -73,6 +74,30 @@ public:
         strcpy(this->contactNumber, contactNumber);
         this->diagnosis = new char[strlen(diagnosis) + 1];
         strcpy(this->diagnosis, diagnosis);
+    }
+
+    // Added assignment operator to prevent memory leaks
+    Patient& operator=(const Patient& other) {
+        if (this != &other) {
+            delete[] name;
+            delete[] address;
+            delete[] contactNumber;
+            delete[] diagnosis;
+            
+            id = other.id;
+            age = other.age;
+            gender = other.gender;
+            
+            name = new char[strlen(other.name) + 1];
+            strcpy(name, other.name);
+            address = new char[strlen(other.address) + 1];
+            strcpy(address, other.address);
+            contactNumber = new char[strlen(other.contactNumber) + 1];
+            strcpy(contactNumber, other.contactNumber);
+            diagnosis = new char[strlen(other.diagnosis) + 1];
+            strcpy(diagnosis, other.diagnosis);
+        }
+        return *this;
     }
 
     Patient(const Patient &other) : Patient(other.id, other.name, other.age, other.gender, other.address, other.contactNumber, other.diagnosis) {}
@@ -208,6 +233,17 @@ public:
         if (!instance)
             instance = new FileHandler();
         return instance;
+    }
+    
+    // Added destructor to prevent memory leaks
+    ~FileHandler() {
+        // Cleanup if needed
+    }
+    
+    // Added method to properly clean up the singleton
+    static void destroy() {
+        delete instance;
+        instance = nullptr;
     }
 
     void savePatient(const Patient &p)
@@ -431,8 +467,12 @@ class AdminMenuStrategy : public MenuStrategy
                                               : "Delete")
                  << " - " << (rights[i] ? "ENABLED" : "DISABLED") << endl;
 
-        bool newRights[count], changed = false;
-        copy(rights, rights + count, newRights);
+        bool newRights[3]; // Using fixed size array instead of VLA for better compatibility
+        for (int i = 0; i < count; i++) {
+            newRights[i] = rights[i]; // Manual copy instead of using std::copy
+        }
+        
+        bool changed = false;
 
         for (int i = 0; i < count; i++)
         {
@@ -710,6 +750,15 @@ public:
 
 class ReceptionistMenuStrategy : public MenuStrategy
 {
+    // Helper method to improve code reuse
+    bool isStringEmpty(const string &str) const {
+        if (str.empty()) return true;
+        for (size_t i = 0; i < str.length(); i++) {
+            if (!isspace(str[i])) return false;
+        }
+        return true;
+    }
+
     void viewRecords()
     {
         try
@@ -749,7 +798,7 @@ class ReceptionistMenuStrategy : public MenuStrategy
                     string idStr;
                     getline(cin, idStr);
 
-                    if (idStr.empty())
+                    if (isStringEmpty(idStr))
                         throw InvalidInputException();
 
                     for (char c : idStr)
@@ -915,18 +964,6 @@ class ReceptionistMenuStrategy : public MenuStrategy
             int age;
             char gender;
 
-            auto isWhiteSpace = [](const string &str) -> bool
-            {
-                for (char c : str)
-                {
-                    if (!isspace(c))
-                    {
-                        return false;
-                    }
-                }
-                return true;
-            };
-
             bool validInput = false;
             while (!validInput)
             {
@@ -935,7 +972,7 @@ class ReceptionistMenuStrategy : public MenuStrategy
                     cout << "Name: ";
                     getline(cin, name);
 
-                    if (name.empty() || isWhiteSpace(name))
+                    if (name.empty() || isStringEmpty(name)) // Using the new helper method
                         throw InvalidInputException();
 
                     for (char c : name)
@@ -1013,7 +1050,7 @@ class ReceptionistMenuStrategy : public MenuStrategy
                     cout << "Address: ";
                     getline(cin, addr);
 
-                    if (addr.empty() || isWhiteSpace(addr))
+                    if (addr.empty() || isStringEmpty(addr))
                         throw InvalidInputException();
 
                     for (char c : addr)
