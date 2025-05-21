@@ -552,43 +552,49 @@ class DoctorMenuStrategy : public MenuStrategy
 
     void updatePatientRecord()
     {
-        try
+    try
+    {
+        // Check permission
+        FileHandler *fh = FileHandler::getInstance();
+        int count;
+        bool *rights = fh->getAccessRights("Doctor", count);
+
+        if (!rights[1])
         {
-            // Check permission
-            FileHandler *fh = FileHandler::getInstance();
-            int count;
-            bool *rights = fh->getAccessRights("Doctor", count);
-
-            if (!rights[1])
-            {
-                delete[] rights;
-                throw PermissionDeniedException();
-            }
             delete[] rights;
+            throw PermissionDeniedException();
+        }
+        delete[] rights;
 
-            Patient *patients;
-            fh->loadAllPatients(patients, count);
+        Patient *patients;
+        fh->loadAllPatients(patients, count);
 
-            if (!count)
-            {
-                cout << "No patients registered yet.\n";
-                return;
-            }
+        if (!count)
+        {
+            cout << "No patients registered yet.\n";
+            return;
+        }
 
-            cout << "\nPatient List:\n";
-            for (int i = 0; i < count; i++)
-                patients[i].displayShort();
+        cout << "\nPatient List:\n";
+        for (int i = 0; i < count; i++)
+            patients[i].displayShort();
 
+        int id = 0;
+        bool validPatient = false;
+        
+        while (!validPatient)
+        {
             cout << "\nEnter patient ID to update (0 to cancel): ";
-            int id;
             cin >> id;
             cin.ignore();
-            if (!id)
+            
+            if (id == 0)
             {
                 delete[] patients;
                 return;
             }
 
+            bool found = false;
             for (int i = 0; i < count; i++)
             {
                 if (patients[i].getId() == id)
@@ -599,14 +605,20 @@ class DoctorMenuStrategy : public MenuStrategy
                     patients[i].setDiagnosis(diag.c_str());
                     fh->updatePatient(patients[i]);
                     cout << "Diagnosis updated!\n";
-                    delete[] patients;
-                    return;
+                    found = true;
+                    validPatient = true;
+                    break;
                 }
             }
 
-            cout << "Patient not found.\n";
-            delete[] patients;
+            if (!found)
+            {
+                cout << "Patient not found. Please try again.\n";
+            }
         }
+        
+        delete[] patients;
+    }
         catch (PermissionDeniedException &e)
         {
             cout << e.what() << endl;
@@ -615,47 +627,54 @@ class DoctorMenuStrategy : public MenuStrategy
 
     void deletePatientRecord()
     {
-        try
+    try
+    {
+        // Check permission
+        FileHandler *fh = FileHandler::getInstance();
+        int count;
+        bool *rights = fh->getAccessRights("Doctor", count);
+
+        if (!rights[2])
         {
-            // Check permission
-            FileHandler *fh = FileHandler::getInstance();
-            int count;
-            bool *rights = fh->getAccessRights("Doctor", count);
-
-            if (!rights[2])
-            {
-                delete[] rights;
-                throw PermissionDeniedException();
-            }
             delete[] rights;
+            throw PermissionDeniedException();
+        }
+        delete[] rights;
 
-            Patient *patients;
-            fh->loadAllPatients(patients, count);
+        Patient *patients;
+        fh->loadAllPatients(patients, count);
 
-            if (!count)
+        if (!count)
+        {
+            cout << "No patients registered yet.\n";
+            return;
+        }
+
+        cout << "\nPatient List:\n";
+        for (int i = 0; i < count; i++)
+            patients[i].displayShort();
+
+            int id = 0;
+        bool validPatient = false;
+        
+            while (!validPatient)
             {
-                cout << "No patients registered yet.\n";
-                return;
-            }
-
-            cout << "\nPatient List:\n";
-            for (int i = 0; i < count; i++)
-                patients[i].displayShort();
-
             cout << "\nEnter patient ID to delete (0 to cancel): ";
-            int id;
             cin >> id;
             cin.ignore();
-            if (!id)
+            
+            if (id == 0)
             {
                 delete[] patients;
                 return;
             }
 
+            bool found = false;
             for (int i = 0; i < count; i++)
             {
                 if (patients[i].getId() == id)
                 {
+                    found = true;
                     cout << "Confirm deletion?(Y/N): ";
                     char c;
                     cin >> c;
@@ -667,14 +686,20 @@ class DoctorMenuStrategy : public MenuStrategy
                     }
                     else
                         cout << "Deletion cancelled.\n";
-                    delete[] patients;
-                    return;
+                    
+                    validPatient = true;
+                    break;
                 }
             }
 
-            cout << "Patient not found.\n";
-            delete[] patients;
+            if (!found)
+            {
+                cout << "Patient not found. Please try again.\n";
+            }
         }
+        
+        delete[] patients;
+    }
         catch (PermissionDeniedException &e)
         {
             cout << e.what() << endl;
