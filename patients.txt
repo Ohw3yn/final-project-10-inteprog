@@ -1,4 +1,11 @@
+<<<<<<< HEAD
 1|kinz|19|M|San Jose|09076318076|try
 2|Rhonkelly|69|O|San Jose |911|update
 3|q|1|O|dfgdfgdg|q|
 4|kinz|19|O|san jose|09076318076|
+=======
+1|Xyrus Aerson Geluz|20|M|Pob. 4, Cuenca, Batangas|09760787467|Fracture
+2|Miahllet Athena|19|F|Dalipit East, Cuenca, Batangas|09768273441|Nangiiwan
+3|Owen Frey|21|M|Ibabao, Cuenca, Batangas|09297272131|Pogi
+4|Lebron James|40|M|Lipa, Batangas|09167423418|
+>>>>>>> db41dd72a9422777636476c31dba1d7722f1c2d0
