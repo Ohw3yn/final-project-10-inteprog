@@ -764,11 +764,11 @@ class ReceptionistMenuStrategy : public MenuStrategy
                 }
                 catch (InvalidInputException &e)
                 {
-                    cout << "Invalid input!\n";
+                    cout << "Invalid input!";
                 }
                 catch (std::out_of_range &e)
                 {
-                    cout << "ID value is too large! Please enter a smaller number.\n";
+                    cout << "ID value is too large! Please enter a smaller number.";
                 }
                 catch (std::exception &e)
                 {
@@ -816,6 +816,82 @@ class ReceptionistMenuStrategy : public MenuStrategy
         }
     }
 
+    bool isWhiteSpace(const string &input)
+    {
+        for (char c : input)
+        {
+            if (!isspace(c))
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    bool isValidReceptionistMenuInput(const string &input)
+    {
+        if (input.empty() || isWhiteSpace(input))
+        {
+            return false;
+        }
+
+        for (char c : input)
+        {
+            if (!isdigit(c))
+            {
+                return false;
+            }
+        }
+
+        try
+        {
+            int choice = stoi(input);
+            return (choice >= 1 && choice <= 3);
+        }
+        catch (const std::exception &)
+        {
+            return false;
+        }
+    }
+
+    void execute()
+    {
+        while (true)
+        {
+            cout << "\n------- Receptionist Menu --------\n";
+            cout << "1. View Records\n";
+            cout << "2. Register Patient\n";
+            cout << "3. Back\n";
+            cout << "Enter your choice: ";
+
+            string input;
+            getline(cin, input);
+
+            if (!isValidReceptionistMenuInput(input))
+            {
+                cout << "Invalid input! Please enter only numbers between 1-3.\n";
+                continue;
+            }
+
+            int choice = stoi(input);
+
+            switch (choice)
+            {
+            case 1:
+                viewRecords();
+                break;
+            case 2:
+                registerPatient();
+                break;
+            case 3:
+                return;
+            default:
+                // This should never execute due to validation
+                cout << "Invalid choice. Please try again.\n";
+            }
+        }
+    }
+
     void registerPatient()
     {
         try
@@ -826,7 +902,7 @@ class ReceptionistMenuStrategy : public MenuStrategy
             bool *rights = fh->getAccessRights("Receptionist", count);
 
             if (!rights[0])
-            { // Register rights is now at index 0
+            {
                 delete[] rights;
                 throw PermissionDeniedException();
             }
@@ -839,6 +915,18 @@ class ReceptionistMenuStrategy : public MenuStrategy
             int age;
             char gender;
 
+            auto isWhiteSpace = [](const string &str) -> bool
+            {
+                for (char c : str)
+                {
+                    if (!isspace(c))
+                    {
+                        return false;
+                    }
+                }
+                return true;
+            };
+
             bool validInput = false;
             while (!validInput)
             {
@@ -847,7 +935,7 @@ class ReceptionistMenuStrategy : public MenuStrategy
                     cout << "Name: ";
                     getline(cin, name);
 
-                    if (name.empty())
+                    if (name.empty() || isWhiteSpace(name))
                         throw InvalidInputException();
 
                     for (char c : name)
@@ -925,7 +1013,7 @@ class ReceptionistMenuStrategy : public MenuStrategy
                     cout << "Address: ";
                     getline(cin, addr);
 
-                    if (addr.empty())
+                    if (addr.empty() || isWhiteSpace(addr))
                         throw InvalidInputException();
 
                     for (char c : addr)
@@ -1026,16 +1114,46 @@ class Hospital
 
     int getChoice(int min, int max)
     {
-        int choice;
-        cin >> choice;
-        while (cin.fail() || choice < min || choice > max)
+        string choiceStr;
+        int choice = 0;
+        bool validInput = false;
+
+        while (!validInput)
         {
-            cin.clear();
-            cin.ignore(10000, '\n');
-            cout << "Invalid input. Enter between " << min << " and " << max << ": ";
-            cin >> choice;
+            try
+            {
+                getline(cin, choiceStr);
+
+                if (choiceStr.empty())
+                    throw InvalidInputException();
+
+                for (char c : choiceStr)
+                {
+                    if (!isdigit(c))
+                        throw InvalidInputException();
+                }
+
+                choice = stoi(choiceStr);
+
+                if (choice < min || choice > max)
+                    throw InvalidInputException();
+
+                validInput = true;
+            }
+            catch (InvalidInputException &e)
+            {
+                cout << "Invalid input. Enter a number between " << min << " and " << max << ": ";
+            }
+            catch (std::out_of_range &e)
+            {
+                cout << "Number too large! Enter a number between " << min << " and " << max << ": ";
+            }
+            catch (std::exception &e)
+            {
+                cout << "An error occurred: " << e.what() << "\nEnter a number between " << min << " and " << max << ": ";
+            }
         }
-        cin.ignore();
+
         return choice;
     }
 
@@ -1078,8 +1196,8 @@ public:
 
     void start()
     {
-        bool running = false;
-        while (!running)
+        bool running = true;
+        while (running)
         {
             if (!currentUser)
             {
@@ -1088,6 +1206,7 @@ public:
                 if (choice == 4)
                 {
                     cout << "Goodbye!\n";
+                    running = false;
                     break;
                 }
 
@@ -1095,9 +1214,13 @@ public:
                 {
                     login(choice);
                 }
-                catch (...)
+                catch (InvalidCredentialsException &e)
                 {
-                    cout << "Invalid credentials\n";
+                    cout << e.what() << endl;
+                }
+                catch (std::exception &e)
+                {
+                    cout << "Error: " << e.what() << endl;
                 }
             }
             else
@@ -1105,7 +1228,15 @@ public:
                 try
                 {
                     currentMenu->displayMenu();
-                    int choice = getChoice(1, 10);
+                    int choice;
+
+                    if (dynamic_cast<Admin *>(currentUser))
+                        choice = getChoice(1, 3);
+                    else if (dynamic_cast<Doctor *>(currentUser))
+                        choice = getChoice(1, 4);
+                    else if (dynamic_cast<Receptionist *>(currentUser))
+                        choice = getChoice(1, 3);
+
                     if ((dynamic_cast<Admin *>(currentUser) && choice == 3) ||
                         (dynamic_cast<Doctor *>(currentUser) && choice == 4) ||
                         (dynamic_cast<Receptionist *>(currentUser) && choice == 3))
@@ -1118,9 +1249,13 @@ public:
                     }
                     currentMenu->handleChoice(choice);
                 }
-                catch (...)
+                catch (HospitalException &e)
                 {
-                    cout << "Error occurred\n";
+                    cout << "Hospital system error: " << e.what() << endl;
+                }
+                catch (std::exception &e)
+                {
+                    cout << "Error occurred: " << e.what() << endl;
                 }
             }
         }
